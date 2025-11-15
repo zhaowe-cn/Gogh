@@ -815,6 +815,78 @@ apply_darwin() {
   rm   "${PROFILE_NAME}.itermcolors"
 }
 
+apply_apple_terminal() {
+  # |
+  # | Applying values to Apple Terminal.app
+  # | ===========================================
+
+  # Convert hex colors to RGB decimal for AppleScript
+  set -- $(hexRGBtoDecRGB "${BACKGROUND_COLOR}")
+  local BG_R=${1}; shift; local BG_G=${1}; shift; local BG_B=${1}; shift
+  
+  set -- $(hexRGBtoDecRGB "${FOREGROUND_COLOR}")
+  local FG_R=${1}; shift; local FG_G=${1}; shift; local FG_B=${1}; shift
+  
+  set -- $(hexRGBtoDecRGB "${CURSOR_COLOR}")
+  local CR_R=${1}; shift; local CR_G=${1}; shift; local CR_B=${1}; shift
+  
+  # Create arrays for ANSI colors
+  local -a ANSI_COLORS_R ANSI_COLORS_G ANSI_COLORS_B
+  for i in {1..16}; do
+    local color_var="COLOR_$(printf '%02d' $i)"
+    set -- $(hexRGBtoDecRGB "${!color_var}")
+    ANSI_COLORS_R[$i]=${1}; shift
+    ANSI_COLORS_G[$i]=${1}; shift
+    ANSI_COLORS_B[$i]=${1}
+  done
+
+  # Use osascript to create and configure the profile
+  osascript <<EOF
+tell application "Terminal"
+  -- Create a new profile or get existing one
+  local profileName
+  set profileName to "${PROFILE_NAME}"
+  
+  -- Create settings set
+  if not (exists (first settings set whose name is profileName)) then
+    create settings set with properties {name:profileName}
+  end if
+  
+  tell (first settings set whose name is profileName)
+    -- Set colors (RGB values from 0-65535)
+    set background color to {${BG_R} * 257, ${BG_G} * 257, ${BG_B} * 257}
+    set normal text color to {${FG_R} * 257, ${FG_G} * 257, ${FG_B} * 257}
+    set cursor color to {${CR_R} * 257, ${CR_G} * 257, ${CR_B} * 257}
+    
+    -- Set ANSI colors
+    set ANSI black color to {${ANSI_COLORS_R[1]} * 257, ${ANSI_COLORS_G[1]} * 257, ${ANSI_COLORS_B[1]} * 257}
+    set ANSI red color to {${ANSI_COLORS_R[2]} * 257, ${ANSI_COLORS_G[2]} * 257, ${ANSI_COLORS_B[2]} * 257}
+    set ANSI green color to {${ANSI_COLORS_R[3]} * 257, ${ANSI_COLORS_G[3]} * 257, ${ANSI_COLORS_B[3]} * 257}
+    set ANSI yellow color to {${ANSI_COLORS_R[4]} * 257, ${ANSI_COLORS_G[4]} * 257, ${ANSI_COLORS_B[4]} * 257}
+    set ANSI blue color to {${ANSI_COLORS_R[5]} * 257, ${ANSI_COLORS_G[5]} * 257, ${ANSI_COLORS_B[5]} * 257}
+    set ANSI magenta color to {${ANSI_COLORS_R[6]} * 257, ${ANSI_COLORS_G[6]} * 257, ${ANSI_COLORS_B[6]} * 257}
+    set ANSI cyan color to {${ANSI_COLORS_R[7]} * 257, ${ANSI_COLORS_G[7]} * 257, ${ANSI_COLORS_B[7]} * 257}
+    set ANSI white color to {${ANSI_COLORS_R[8]} * 257, ${ANSI_COLORS_G[8]} * 257, ${ANSI_COLORS_B[8]} * 257}
+    
+    set ANSI bright black color to {${ANSI_COLORS_R[9]} * 257, ${ANSI_COLORS_G[9]} * 257, ${ANSI_COLORS_B[9]} * 257}
+    set ANSI bright red color to {${ANSI_COLORS_R[10]} * 257, ${ANSI_COLORS_G[10]} * 257, ${ANSI_COLORS_B[10]} * 257}
+    set ANSI bright green color to {${ANSI_COLORS_R[11]} * 257, ${ANSI_COLORS_G[11]} * 257, ${ANSI_COLORS_B[11]} * 257}
+    set ANSI bright yellow color to {${ANSI_COLORS_R[12]} * 257, ${ANSI_COLORS_G[12]} * 257, ${ANSI_COLORS_B[12]} * 257}
+    set ANSI bright blue color to {${ANSI_COLORS_R[13]} * 257, ${ANSI_COLORS_G[13]} * 257, ${ANSI_COLORS_B[13]} * 257}
+    set ANSI bright magenta color to {${ANSI_COLORS_R[14]} * 257, ${ANSI_COLORS_G[14]} * 257, ${ANSI_COLORS_B[14]} * 257}
+    set ANSI bright cyan color to {${ANSI_COLORS_R[15]} * 257, ${ANSI_COLORS_G[15]} * 257, ${ANSI_COLORS_B[15]} * 257}
+    set ANSI bright white color to {${ANSI_COLORS_R[16]} * 257, ${ANSI_COLORS_G[16]} * 257, ${ANSI_COLORS_B[16]} * 257}
+  end tell
+  
+  -- Optionally set as default profile
+  -- set default settings to (first settings set whose name is profileName)
+end tell
+EOF
+
+  prints "" "Terminal profile '${PROFILE_NAME}' has been created/updated."
+  prints "To use this profile, open Terminal preferences and select '${PROFILE_NAME}' as your default profile."
+}
+
 apply_gtk() {
   # |
   # | Applying values to gnome/mate/tilix
@@ -1193,6 +1265,10 @@ case "${TERMINAL}" in
     apply_darwin
     ;;
 
+  Apple_Terminal )
+    apply_apple_terminal
+    ;;
+
   mintty )
     apply_cygwin
     ;;
@@ -1305,6 +1381,7 @@ case "${TERMINAL}" in
     "   mintty (and deriviates)"                              \
     "   guake"                                                \
     "   iTerm.app (iTerm2)"                                   \
+    "   Apple_Terminal (macOS Terminal.app)"                  \
     "   pantheon-terminal"                                    \
     "   io.elementary.t* (elementary terminal)"               \
     "   mate-terminal"                                        \
